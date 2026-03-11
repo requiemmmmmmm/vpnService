@@ -60,6 +60,21 @@ async def create_device(
     return device, config
 
 
+async def delete_device(session: AsyncSession, telegram_id: int, device_id: int) -> bool:
+    result = await session.execute(
+        select(Device)
+        .join(User)
+        .where(User.telegram_id == telegram_id, Device.id == device_id)
+    )
+    device = result.scalar_one_or_none()
+    if not device:
+        return False
+
+    await wireguard.remove_peer(device.public_key)
+    await session.delete(device)
+    return True
+
+
 async def list_devices(session: AsyncSession, telegram_id: int) -> list[Device]:
     result = await session.execute(
         select(Device)
@@ -68,3 +83,15 @@ async def list_devices(session: AsyncSession, telegram_id: int) -> list[Device]:
         .order_by(Device.created_at)
     )
     return list(result.scalars().all())
+
+
+async def get_device_config(session: AsyncSession, telegram_id: int, device_id: int) -> str | None:
+    result = await session.execute(
+        select(Device)
+        .join(User)
+        .where(User.telegram_id == telegram_id, Device.id == device_id)
+    )
+    device = result.scalar_one_or_none()
+    if not device:
+        return None
+    return wireguard.generate_client_config(device)

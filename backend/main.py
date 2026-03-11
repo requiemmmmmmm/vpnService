@@ -8,6 +8,11 @@ app = FastAPI(title="VPN Service")
 app.include_router(router)
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 @app.exception_handler(DeviceLimitReached)
 async def device_limit_handler(request: Request, exc: DeviceLimitReached):
     return JSONResponse(status_code=409, content={"detail": str(exc)})
